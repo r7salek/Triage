@@ -11,6 +11,8 @@ assistant-style agents for:
 - Europe PMC literature lookup
 - ClinVar variant evidence lookup
 - ClinicalTrials.gov possible trial lookup
+- Investigation planning and draft order basket support
+- Medication safety, guideline scout, patient questions, and differential hypothesis support
 - Final physician briefing synthesis
 
 This is not diagnostic, not prescribing, not patient-facing, not EHR-integrated,
@@ -39,6 +41,29 @@ streamlit run streamlit_app.py
 
 All public API lookups use no-account sources. NCBI services may enforce rate
 limits without an API key.
+
+## Deploy On Streamlit Community Cloud
+
+This repository is ready for Streamlit Community Cloud.
+
+1. Open [share.streamlit.io](https://share.streamlit.io).
+2. Choose **Create app**.
+3. Select repository `r7salek/Triage`.
+4. Select branch `main`.
+5. Set the main file path to `streamlit_app.py`.
+6. Optional: open **Advanced settings** and paste secrets using the format in `.streamlit/secrets.toml.example`.
+7. Deploy.
+
+The app does not require secrets. If `OPENAI_API_KEY` is not configured, it uses deterministic fallback summaries.
+
+Suggested optional Streamlit secrets:
+
+```toml
+OPENAI_API_KEY = ""
+OPENAI_MODEL = "gpt-4.1-mini"
+```
+
+Do not commit a real `.streamlit/secrets.toml` file. It is ignored by Git.
 
 ## Public Sources
 

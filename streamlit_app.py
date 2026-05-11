@@ -60,6 +60,19 @@ AGENT_OPTIONS = [
     ("final_brief", "Final Brief", "Synthesize the physician-facing summary."),
 ]
 
+
+def _runtime_secret(name: str, default: str | None = None) -> str | None:
+    """Read optional Streamlit Cloud secrets without requiring them locally."""
+    try:
+        value = st.secrets.get(name, default)
+    except Exception:
+        value = default
+    if value is None:
+        return None
+    value = str(value).strip()
+    return value or default
+
+
 def _inject_styles() -> None:
     st.markdown(
         """
@@ -393,25 +406,35 @@ def main() -> None:
 
         st.divider()
         st.header("Runtime")
+        configured_openai_key = _runtime_secret("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
+        configured_openai_model = _runtime_secret("OPENAI_MODEL") or os.getenv("OPENAI_MODEL") or "gpt-4.1-mini"
         session_openai_key = st.text_input(
             "OpenAI API key",
             type="password",
             key="session_openai_api_key",
             placeholder="Optional, session only",
-            help="Used only in this Streamlit process for optional LLM synthesis. It is not written to disk.",
+            help="Used only in this Streamlit process for optional LLM synthesis. Streamlit Cloud secrets or environment variables are used when this is blank.",
         )
         openai_model = st.text_input(
             "OpenAI model",
-            value=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
+            value=configured_openai_model,
             key="session_openai_model",
-            help="Used with the session key or shell OPENAI_API_KEY. Leave the default for a small, fast briefing model.",
+            help="Used with the session key, Streamlit secret, or environment OPENAI_API_KEY. Leave the default for a small, fast briefing model.",
         )
-        has_openai = bool(session_openai_key.strip() or os.getenv("OPENAI_API_KEY"))
-        llm_status = "session key active" if session_openai_key else ("shell key detected" if has_openai else "fallback")
+        effective_openai_key = session_openai_key.strip() or configured_openai_key
+        has_openai = bool(effective_openai_key)
+        if session_openai_key.strip():
+            llm_status = "session key active"
+        elif _runtime_secret("OPENAI_API_KEY"):
+            llm_status = "Streamlit secret detected"
+        elif os.getenv("OPENAI_API_KEY"):
+            llm_status = "environment key detected"
+        else:
+            llm_status = "fallback"
         st.write("LLM summaries:", llm_status)
         st.caption("No database, login, EHR connection, or intentional case persistence.")
         if not has_openai:
-            st.caption("Add a session key above or set OPENAI_API_KEY before launch to enable optional LLM synthesis.")
+            st.caption("Add a session key above, a Streamlit secret, or OPENAI_API_KEY before launch to enable optional LLM synthesis.")
 
     with st.form("case-form"):
         case_text = st.text_area(
@@ -440,7 +463,7 @@ def main() -> None:
                 focus=focus,
                 use_live_clients=live_clients,
                 enabled_agents=agent_skill_toggles,
-                openai_api_key=session_openai_key,
+                openai_api_key=effective_openai_key,
                 openai_model=openai_model,
             )
         st.session_state["last_report"] = report
